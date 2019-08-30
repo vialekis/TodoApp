@@ -36,7 +36,7 @@ class TodoItem(models.Model):
     def get_absolute_url(self):
         return reverse("task:details",args=[self.pk])
 
-class TagCount(models.Model):
+class  TagCount(models.Model):
     tag_slug = models.CharField(max_length=128)
     tag_name = models.CharField(max_length=128)
     tag_id = models.PositiveIntegerField(default=0)

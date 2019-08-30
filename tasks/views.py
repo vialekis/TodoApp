@@ -4,7 +4,6 @@ from django.views import View
 from django.views.generic import ListView
 from django.urls import reverse
 from tasks.forms import AddTaskForm, TodoItemForm, TodoItemExportForm, TodoImport
-from tasks.models import TodoItem
 from django.views.generic.detail import DetailView
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -16,15 +15,18 @@ from taggit.models import Tag
 from trello import TrelloClient
 from django.db.models import Count
 # from taggit.managers import TaggableManager
+from tasks.models import TagCount, TodoItem
+from tasks.signals import task_tags_updated
+
 
 @login_required
 def index(request):
-    import random
-    ## counts = {t.name: random.randint(1, 100) for t in Tag.objects.all()}
-    # counts = {
-    #     t.name: t.taggit_taggeditem_items.count()
-    #     for t in Tag.objects.all()
-    # }
+    ### import random
+    ### counts = {t.name: random.randint(1, 100) for t in Tag.objects.all()}
+    ## counts = {
+    ##     t.name: t.taggit_taggeditem_items.count()
+    ##     for t in Tag.objects.all()
+    ## }
     counts = Tag.objects.annotate(
         total_tasks=Count('todoitem')
     ).order_by("-total_tasks")
@@ -33,6 +35,11 @@ def index(request):
         c.name: c.total_tasks
         for c in counts
     }
+    # counts= TagCount.objects.all()
+    # counts = {
+    #     c.tag_name: c.tag_count
+    #     for c in counts
+    # }
     return render(request, "tasks/index.html", {"counts": counts})
 
 
@@ -227,23 +234,26 @@ def tasks_by_tag(request, tag_slug=None):
         "tasks/list_by_tag.html",
         {"tag": tag, "tasks": tasks, "all_tags": all_tags},)
 
+
 class TaskImport(LoginRequiredMixin, View):
     def import_task_trello(self, user,id):
         client = TrelloClient(api_key = user.profile.api_key, api_secret = user.profile.api_secret)
         tasks_Trello = client.list_boards()[id["id_board"]]
         to_do = tasks_Trello.list_lists()[0]
         cards = to_do.list_cards()
-        print(cards)
         card = to_do.list_cards()[0]
-        print(card)
         tasks = TodoItem.objects.filter(owner=user).all()
+        tag=[]
         for t in tasks:
+            # tag.append(t.tags)
             t.delete()
+        # for ta in tag:
+        #     count = TodoItem.tags.through.objects.filter(tag_id=ta).aggregate(total_tasks=Count('id'))
+        r = 0
         for i in cards:
             t = TodoItem(description=i.name,id_trello=i.id,owner=user)
-            print(i.board_id, i.name,i.idBoard,i.id)
             t.save()
-        r = 3
+            r+=1
         return r
 
     def post(self, request, *args, **kwargs):
